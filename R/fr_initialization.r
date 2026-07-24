@@ -16,7 +16,7 @@ fr_initialization <- function(data_dir=NULL, input_file=NULL){
 
   # --- Call libraries ---
   packages <- c("Hmisc", "gsubfn", "stringr", "stringi", "data.table", "rgbif",
-                "worrms", "openxlsx", "tidyverse", "doParallel",  "foreach"
+                "worrms", "openxlsx", "readODS", "tidyverse", "doParallel",  "foreach"
   ) 
   
   new.packages <- packages[!(packages %in% installed.packages()[,"Package"])] # check which of them is not yet installed
@@ -66,13 +66,15 @@ fr_initialization <- function(data_dir=NULL, input_file=NULL){
 
 # --- Load functions ---
   source(file.path("R","fr_prepare_main_dataset.r"))
-  source(file.path("R","fr_taxons_standard.r"))
+  source(file.path("R","fr_taxa_standard.r"))
   source(file.path("R","check_GBIF_taxa_parallel.r"))  
   source(file.path("R","fr_years_standard.r"))
   source(file.path("R","fr_locations_standard.r"))
   source(file.path("R","fr_terms_standard.R"))
   source(file.path("R","fr_save_output_dataset.R"))
   source(file.path("R","standardize_terms.R"))
+  
+  set.seed(17) # set seed for reproducibility
 
 # --- Import data ---
   filename <- file.path(input, input_file)
@@ -84,11 +86,35 @@ fr_initialization <- function(data_dir=NULL, input_file=NULL){
     fr_input_data <- read.xlsx(filename)
   } else if (tolower(file_ext) %in% c("csv", "txt")) {
     fr_input_data <- fread(filename, encoding = "UTF-8")
+  } else if (tolower(file_ext) == "ods") {
+    fr_input_data <- readODS::read_ods(filename)
   } else {
     stop("Unsupported file type: ", file_ext)
   }
   
   setDT(fr_input_data) # convert to data.table
+  
+  # --- Encoding fix ---
+  fr_input_data[, names(fr_input_data) := lapply(.SD, function(x) {
+    if (is.character(x)) {
+      x <- iconv(x, from = "UTF-8", to = "UTF-8", sub = "")
+      x[is.na(x) | !validUTF8(x)] <- ""
+      x
+    } else {
+      x
+    }
+  }), .SDcols = names(fr_input_data)]
+  
+  # Fix numeric-looking columns that got a trailing ".0" from Excel import
+  fix_trailing_decimal <- function(x) {
+    ifelse(grepl("^-?[0-9]+\\.0+$", x), sub("\\.0+$", "", x), x)
+  }
+  
+  for (col in c("FirstRecord", "FirstRecord1", "FirstRecord2")) {
+    if (col %in% names(fr_input_data)) {
+      fr_input_data[[col]] <- fix_trailing_decimal(fr_input_data[[col]])
+    }
+  }
   
   cat("\n  - Functions and input data loaded\n")
   

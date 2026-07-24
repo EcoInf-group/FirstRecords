@@ -5,7 +5,7 @@
 ##                   -----------------------------                      ##
 ##                                                                      ##
 ## T. Renard Truong, H. Seebens                                         ##
-## v2.0, October 2025                                                   ##
+## v2.1, July 2026                                                   ##
 ##########################################################################
 
 ## PREPARE WORKSPACE AND CONFIGURATION ###################################
@@ -15,11 +15,16 @@ rm(list = ls())
 
 ptime <- proc.time()
 
+# --- Please define your working directory (where your code is) in "work_dir" ---
+#work_dir = "C:/your/working/directory/"
+#setwd(work_dir)
+#getwd()
+
 # --- Please define "data_dir" folder ("data" by default) ---
 data_dir = "data"
 
 # --- Please define "input_file" ("FirstRecords_sample_2000.xlsx" by default) ---
-input_file = "FirstRecords_sample_2000.xlsx"
+input_file = "sample_200.xlsx"
 
 # --- Please define an identifier "ID" of the final dataset (date by default) ---
 ID = Sys.Date()
@@ -44,7 +49,10 @@ cat("\nIntialization completed\n ")
 cat("\nSTEP 1: Prepare main dataset") 
 
 fr_main_dataset_1 <- fr_prepare_main_dataset(dataset = init,
-                                           use_log = TRUE, # TRUE to record progress in log file in 'output' folder
+                                            Country = "Country", # Name of column with locations 
+                                            originalName = "GenusSpecies", # Name of column with species names
+                                            FirstRecord = "FirstRecord", # Name of column with first records (years)
+                                            use_log = TRUE, # TRUE to record progress in log file in 'output' folder
                                            save_to_disk = TRUE, # TRUE to save fr_main_dataset_1 in 'tmp' folder
                                            data_dir = data_dir)
 cat("\nStep 1 completed: main dataset 'fr_main_dataset_1' ready to be processed\n ") 
@@ -55,7 +63,7 @@ cat("\nStep 1 completed: main dataset 'fr_main_dataset_1' ready to be processed\
 
 cat("\nSTEP 2: Standardize taxa") 
 
-fr_main_dataset_2 <- fr_taxons_standard(dataset = fr_main_dataset_1,
+fr_main_dataset_2 <- fr_taxa_standard(dataset = fr_main_dataset_1,
                                         use_log = TRUE, # TRUE to record progress in log file in 'output' folder
                                         save_to_disk = TRUE, # TRUE to save fr_main_dataset_2 in 'tmp' folder
                                         data_dir = data_dir) 
