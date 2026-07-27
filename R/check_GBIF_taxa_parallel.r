@@ -32,7 +32,7 @@ check_GBIF_taxa_parallel <- function(taxon_names=NULL, # vector or data.frame
   if (all(colnames(dat)!="taxon")){ # check if column "taxon_orig" can be found
     stop("No column with taxon names found. Please specify in column_name_taxa.")
   }
-
+  
   if (!file.exists(file.path(data_dir, "tmp"))){ # to store intermediate output
     dir.create(file.path(data_dir, "tmp"))
   }
@@ -47,7 +47,7 @@ check_GBIF_taxa_parallel <- function(taxon_names=NULL, # vector or data.frame
   }
   n_taxa <- length(taxlist)
   cat(" - The number of taxa to be processed is", n_taxa, "\n")
-
+  
   ## get taxonomic information from GBIF #######################################
   
   cat(" - Retrieve information from GBIF...\n")
@@ -78,14 +78,29 @@ check_GBIF_taxa_parallel <- function(taxon_names=NULL, # vector or data.frame
     dst$GBIFconfidence   <- src$confidence[i]
     dst
   }
- 
+  
+  ## safe wrapper around name_backbone_verbose to guard against 0-row results
+  safe_name_backbone_verbose <- function(name) {
+    if (is.null(name) || length(name) == 0 || is.na(name) || name == "") {
+      return(list(
+        data = data.frame(matchType = "NONE", stringsAsFactors = FALSE),
+        alternatives = data.frame()
+      ))
+    }
+    res <- name_backbone_verbose(name)
+    if (is.null(res$data) || nrow(res$data) == 0) {
+      res$data <- data.frame(matchType = "NONE", stringsAsFactors = FALSE)
+    }
+    res
+  }
+  
   cores=detectCores()
   cl <- makeCluster(cores[1]-1) # -1 to avoid overloading your computer
   registerDoParallel(cl)
-
-  all_out <- foreach(i=1:n_taxa, .packages=c("rgbif")) %dopar% {
-  # for (i in 1:length(db_all)){ #
   
+  all_out <- foreach(i=1:n_taxa, .packages=c("rgbif")) %dopar% {
+    # for (i in 1:length(db_all)){ #
+    
     gbif_entry <- name_backbone_verbose(taxlist[i], strict=F) # check for names and synonyms
     # gbif_entry <- name_backbone_verbose("uronema marinum", strict=F) # check for names and synonyms
     
@@ -95,7 +110,7 @@ check_GBIF_taxa_parallel <- function(taxon_names=NULL, # vector or data.frame
                             species=NA, genus=NA, family=NA, class=NA, order=NA, phylum=NA, kingdom=NA, 
                             GBIFusageKey=NA, GBIFtaxonRank=NA, GBIFstatus= "NoMatch", 
                             GBIFmatchType=NA, workflowNote=NA, GBIFstatus_Synonym=NA, GBIFconfidence=NA)
-
+    
     # select species name and download taxonomy
     db <- gbif_entry$data
     alternatives <- gbif_entry$alternatives
@@ -134,14 +149,14 @@ check_GBIF_taxa_parallel <- function(taxon_names=NULL, # vector or data.frame
           
           synonym_info <- name_usage(key=db$acceptedUsageKey)[[2]]
           
-          db2_all <- name_backbone_verbose(synonym_info$scientificName) #$data
-
+          db2_all <- safe_name_backbone_verbose(synonym_info$scientificName) #$data
+          
           if (db2_all$data$matchType!="NONE"){ # check if data set exists
             db2 <- db2_all$data
           } else {
             db2 <- db2_all$alternatives
           }
-            
+          
           ## fill cells related to GBIF matches
           out_entry <- fill_gbif_core(db, out_entry) # original match
           
@@ -161,7 +176,7 @@ check_GBIF_taxa_parallel <- function(taxon_names=NULL, # vector or data.frame
             
             out_entry$taxon    <- db2[criterion, ]$canonicalName
             out_entry$scientificName    <- db2[criterion, ]$scientificName
-
+            
             out_entry$workflowNote        <- "case 2a"
             
             return(out_entry)
@@ -175,7 +190,7 @@ check_GBIF_taxa_parallel <- function(taxon_names=NULL, # vector or data.frame
             return(out_entry)
             
           }
-
+          
           out_entry$workflowNote        <- "case 2c"
           
           return(out_entry)
@@ -186,7 +201,7 @@ check_GBIF_taxa_parallel <- function(taxon_names=NULL, # vector or data.frame
         ##########################################################################      
         ## FUZZY MATCHES #########################################################
         ##########################################################################    
-
+        
         out_entry$taxon      <- db$canonicalName[1]
         out_entry$scientificName <- db$scientificName[1]
         
@@ -204,7 +219,7 @@ check_GBIF_taxa_parallel <- function(taxon_names=NULL, # vector or data.frame
         ########################################################################      
         ## HIGHERRANK: check if lower rank information exists ##################
         ########################################################################    
-
+        
         # if (any(alternatives$matchType=="EXACT")){ # check for exact matches in alternatives
         #   criterion <- min(which(alternatives$matchType=="EXACT")) # take the first records, which seemed to be the best match (based on experience)
         #   if (alternatives$status[criterion]=="ACCEPTED"){
@@ -222,7 +237,7 @@ check_GBIF_taxa_parallel <- function(taxon_names=NULL, # vector or data.frame
               out_entry <- fill_taxonomy(alternatives[criterion,], out_entry)
               
               # check if taxon rank is correct (sometimes GBIF reports SPECIES rather than GENUS in alternatives)
-              db2_all <- name_backbone_verbose(out_entry$scientificName) # get new match with new taxon name
+              db2_all <- safe_name_backbone_verbose(out_entry$scientificName) # get new match with new taxon name
               if (db2_all$data$matchType!="NONE"){
                 if (db2_all$data$rank!=out_entry$GBIFtaxonRank){
                   out_entry$GBIFtaxonRank <- db2_all$data$rank # overwrite rank if deviating
@@ -241,9 +256,9 @@ check_GBIF_taxa_parallel <- function(taxon_names=NULL, # vector or data.frame
             if (alternatives$status[criterion]=="SYNONYM" | alternatives$status[criterion]=="HETEROTYPIC_SYNONYM"){
               # criterion <- alternatives$status=="SYNONYM" & alternatives$matchType=="EXACT" #& which(alternatives$confidence==max(alternatives$confidence, na.rm=T))
               criterion <- 1
-
+              
               # check if taxon rank is correct (sometimes GBIF reports SPECIES rather than GENUS in alternatives)
-              db2_all <- name_backbone_verbose(alternatives$species[criterion]) # get new match with new taxon name
+              db2_all <- safe_name_backbone_verbose(alternatives$species[criterion]) # get new match with new taxon name
               
               if (db2_all$data$matchType!="NONE"){
                 
@@ -269,7 +284,7 @@ check_GBIF_taxa_parallel <- function(taxon_names=NULL, # vector or data.frame
             }
           }
         } else {
-
+          
           ########################################################################
           ## ACCEPT ALSO HIGHERRANK if canonicalName exists ######################
           ########################################################################
@@ -314,7 +329,7 @@ check_GBIF_taxa_parallel <- function(taxon_names=NULL, # vector or data.frame
         if (alternatives$status[criterion]=="SYNONYM"){
           
           # check if taxon rank is correct (sometimes GBIF reports SPECIES rather than GENUS in alternatives)
-          db2_all <- name_backbone_verbose(alternatives$species[criterion]) # get new match with new taxon name
+          db2_all <- safe_name_backbone_verbose(alternatives$species[criterion]) # get new match with new taxon name
           
           if (db2_all$data$matchType!="NONE"){
             
@@ -367,17 +382,17 @@ check_GBIF_taxa_parallel <- function(taxon_names=NULL, # vector or data.frame
   }
   ## stop cluster  
   stopCluster(cl)
-
-
+  
+  
   all_out_dt <- rbindlist(all_out, fill=TRUE)
   missing <- subset(all_out_dt, is.na(taxon))
   
   # Rprof(NULL)    ## Turn off the profiler
   # summaryRprof()
-
+  
   n_taxa_matched <- sum(!is.na(all_out_dt$taxon))
   n_synonyms <- sum(all_out_dt$GBIFstatus=="SYNONYM", na.rm=T)
-
+  
   out <- list()
   out[[1]] <- all_out_dt
   out[[2]] <- missing
@@ -386,6 +401,6 @@ check_GBIF_taxa_parallel <- function(taxon_names=NULL, # vector or data.frame
   cat(" -", n_synonyms, "synonyms identified\n")
   cat(" -", n_taxa_matched, "(",round(n_taxa_matched/n_taxa,2)*100, "% )", "taxon names retrieved from GBIF\n")
   cat(" - For", n_taxa-n_taxa_matched, "taxa no match was found and the taxon names provided by the user were taken")
-
+  
   return(out)
 }
