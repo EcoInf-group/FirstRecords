@@ -1,5 +1,5 @@
-occurrenceStatus_standard,occurrenceStatus_var,,,,,
-uncertain,Not applicable NA; uncertain; possibly extinct; Cs; Casual; Cas; Not known; probably extant; extinct casual; presence uncertain; possibly extant; Erroneously reported; Suspected; eradicated; Data deficient; introduced/alien (reported to present),,,,,
-present,present; Introduced/alien (present); extant,,,,,
-absent,Absent; died out; extirpated; unsuccessful; extinct,,,,,
-present (not occurring in the wild),captive; alien/exotic (in captivity); In captivity/culture; alien (reported as captive/cultivated); introduced (reported as captive/cultivated to present),,,,,
+occurrenceStatus_standard,occurrenceStatus_var
+uncertain,Not applicable NA; uncertain; possibly extinct; Cs; Casual; Cas; Not known; probably extant; extinct casual; presence uncertain; possibly extant; Erroneously reported; Suspected; Data deficient; introduced/alien (reported to present)
+present,present; Introduced/alien (present); extant
+absent,Absent; died out; extirpated; unsuccessful; extinct; eradicated 
+present (not occurring in the wild),captive; alien/exotic (in captivity); In captivity/culture; alien (reported as captive/cultivated); introduced (reported as captive/cultivated to present)
