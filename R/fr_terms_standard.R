@@ -18,7 +18,7 @@ fr_terms_standard <- function(dataset = NULL,
    }  
   
   # --- Reset unresolved-terms log at the start of each run ---
-  unlink(file.path(data_dir, "tmp", "log_unresolved_terms.csv"))
+  unlink(file.path(data_dir, "tmp", "fr_check_unresolved_terms.csv"))
   unlink(file.path(data_dir, "tmp", "unresolved_groups"), recursive = TRUE)
   
   # --- Open log file ---
@@ -80,12 +80,25 @@ fr_terms_standard <- function(dataset = NULL,
     occurrenceStatus := "present"
   ]  
   
-  # --- Resolve "PresentStatus" group: keep only values unresolved in ALL 3 terms ---
+  # --- Resolve "speciesStatus" group: keep only values unresolved in ALL 3 terms ---
   group_dir <- file.path(data_dir, "tmp", "unresolved_groups")
-  group_files <- list.files(group_dir, pattern = "^PresentStatus__", full.names = TRUE)
+  group_files <- list.files(group_dir, pattern = "^speciesStatus__", full.names = TRUE)
   
   if (length(group_files) > 0) {
-    group_lists <- lapply(group_files, function(f) fread(f, colClasses = "character")$unmatched_term)
+    group_lists <- lapply(group_files, function(f) {
+      dt <- tryCatch(
+        fread(f, colClasses = "character", quote = "\"", fill = TRUE, header = TRUE),
+        error = function(e) {
+          warning("Could not read group file '", f, "': ", conditionMessage(e))
+          data.table(unmatched_term = character())
+        }
+      )
+      if (!"unmatched_term" %in% names(dt)) {
+        warning("Group file '", f, "' missing expected column — skipping.")
+        return(character(0))
+      }
+      dt$unmatched_term
+    })
     truly_unresolved <- Reduce(intersect, group_lists)
     
     if (length(truly_unresolved) > 0) {
@@ -103,7 +116,7 @@ fr_terms_standard <- function(dataset = NULL,
       
       cat(
         "\nWarning: ", length(truly_unresolved),
-        " PresentStatus-derived terms could not be standardized against ANY of ",
+        " speciesStatus-derived terms could not be standardized against ANY of ",
         "degreeOfEstablishment/establishmentMeans/occurrenceStatus. Logged to '",
         filename_unres, "' for manual review.\n",
         sep = ""

@@ -59,7 +59,7 @@ standardize_terms <- function(dataset = NULL,
   unresolved <- unique(unresolved[unmatched_term != "" & !is.na(unmatched_term)])
   
   # --- Replace unmatched with blank ---
-  dat[, (term) := fifelse(!is.na(matched_value), matched_value, "NA")]
+  dat[, (term) := fifelse(!is.na(matched_value), matched_value, NA_character_)]
   
   # --- Log unresolved terms ---
   # If log_group is set, several terms share the same source column
@@ -78,7 +78,7 @@ standardize_terms <- function(dataset = NULL,
       fwrite(unresolved, tmp_file, quote = TRUE)
       
       # --- Check if all terms in the group have now been processed ---
-      group_files <- list.files(tmp_dir, pattern = paste0("^", log_group, "__"), full.names = TRUE)
+ #     group_files <- list.files(tmp_dir, pattern = paste0("^", log_group, "__"), full.names = TRUE)
       
     } else {
       # --- Standalone term (no group): log directly ---
